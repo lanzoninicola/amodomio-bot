@@ -1,0 +1,19 @@
+version: "3.9"
+
+services:
+  node-bot:
+    hostname: node-bot
+    container_name: node-bot
+    image: ${AMODOMIO_BOT}
+    restart: always
+    ports:
+      - "19000:19000"
+    env_file:
+      - ./.docker-env
+    networks:
+      - production-network
+    volumes:
+      - ./tokens:/usr/src/app/tokens
+networks:
+  production-network:
+    driver: bridge

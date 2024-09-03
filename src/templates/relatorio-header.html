@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css?family=Google%20Sans:300,400,500,600,800&amp;display=swap" rel="stylesheet">
+    <title>Document</title>
+    <style>
+        * {
+            margin: 0;
+            font-family: "Google Sans";
+        }
+        .flex-1 {
+            flex: 1 1 0;
+        }
+        .flex {
+            display: flex;
+        }
+        .flex-col {
+            flex-direction: column;
+        }
+        .titulo-container {
+            padding: 20px;
+            padding-bottom: 4px;
+            gap: 4px;
+        }
+        .date-container {
+            font-size: 14px;
+            align-items: center;
+            justify-items: end;
+            min-width: 220px;
+            gap: 8px;
+        }
+        .date-icon {
+            margin-left: 8px;
+        }
+        .subtitulo-container {
+            font-size: 14px;
+            padding-bottom: 8px;
+            padding-left: 40px;
+            padding-right: 40px;
+            align-items: center;
+        }
+        .estab-container {
+            min-width: 220px;
+            padding-right: 16px;
+        }
+        .gerado-container {
+            padding-right: 4px;
+            width: max-content;
+        }
+        .iframe-looker {
+            width: 100%;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="flex flex-col" id="header-container" style="width: {{width}}">
+        <div class="titulo-container flex">
+            <h2 id="title">{{title}}</h2>
+
+            <div class="flex-1"></div>
+
+            <div class="flex date-container">
+                <span id="start-date">{{start_date}}</span> - <span id="end-date">{{end_date}}</span>
+                <svg viewBox="0 0 24 24" width="24px" height="24px" fill="rgba(0, 0, 0, 0.54)" focusable="false" aria-hidden="true" class="date-icon"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"></path></svg>
+            </div>
+        </div>
+
+        <div class="flex subtitulo-container">
+
+            <div class="estab-container" id="estab">
+                {{estab_id}} - {{estab_name}}
+            </div>
+
+            <div class="flex-1"></div>
+
+            <span class="gerado-container" id="gerado">
+                Gerado às {{data}} por {{usuario}}
+            </span>
+        </div>
+    </div>
+</body>
+
+</html>
