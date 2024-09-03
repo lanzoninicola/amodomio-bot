@@ -7,11 +7,11 @@ import * as fs from "fs";
 import { ListMessageOptions } from "@wppconnect/wa-js/dist/chat";
 import botController from "../controllers/bot.controller";
 
-class WhatsappWppConnect {
+class WppConnectBot {
   private mensagensProcessando = 0;
-  private wppConnectClient: Whatsapp;
-  private base64Qr: string;
-  private attempts: number;
+  private client: Whatsapp;
+  private base64Qr: string = "";
+  private attempts: number = 0;
 
   constructor() {
     // const lockFile = path.normalize("./tokens/bot-visitacao/SingletonLock");
@@ -52,35 +52,40 @@ class WhatsappWppConnect {
           this.attempts = attempt;
         },
       })
-      .then((client: Whatsapp) => {
-        this.wppConnectClient = client;
+      .then((whatsapp: Whatsapp) => {
+        this.client = whatsapp;
 
-        this.wppConnectClient.onMessage(async (message: Message) => {
-          console.log("++++++++++++++++++++++++++++++++++=");
-          console.log({ message });
+        this.startListeningMessages();
+      })
+      .catch((erro) => {
+        console.log(`wppconnect.create error:` + erro);
+        process.exit(129);
+      });
+  }
 
-          if (process.env.BOT_DEBUG == "true") {
-            if ((message.author || message.from) !== "554691052049@c.us") {
-              return;
-            }
-          }
+  startListeningMessages() {
+    this.client.onMessage(async (message: Message) => {
+      if (process.env.BOT_DEBUG == "true") {
+        console.log("=========== DEBUG MODE ON ==============");
+        console.log("message", message);
+      }
 
-          this.mensagensProcessando += 1;
+      this.mensagensProcessando += 1;
 
-          // sem await mesmo
-          this.wppConnectClient.startTyping(message.from).then().catch();
+      // sem await mesmo
+      this.client.startTyping(message.from).then().catch();
 
-          try {
-            if (message["listResponse"]?.singleSelectReply) {
-              message.body =
-                message["listResponse"].singleSelectReply.selectedRowId;
-            }
+      try {
+        if (message["listResponse"]?.singleSelectReply) {
+          message.body =
+            message["listResponse"].singleSelectReply.selectedRowId;
+        }
 
-            // TODO: to implement
-            // speech to text era uma ferramenta no google cloud de limb
-            /**
+        // TODO: to implement
+        // speech to text era uma ferramenta no google cloud de limb
+        /**
             if (["audio"].includes(message.type)) {
-              let mediaBase64 = await this.wppConnectClient.downloadMedia(
+              let mediaBase64 = await this.client.downloadMedia(
                 message
               );
               await this.sendMessage(
@@ -93,43 +98,34 @@ class WhatsappWppConnect {
             }
                */
 
-            // converter audio em texto e processar
-            // speech to text era uma ferramenta no google cloud de limb
+        // converter audio em texto e processar
+        // speech to text era uma ferramenta no google cloud de limb
 
-            // if (["ptt"].includes(message.type)) {
-            //   let mediaBase64 = await this.wppConnectClient.downloadMedia(
-            //     message
-            //   );
-            //   message.body = await speechToText.translate(mediaBase64);
-            // }
+        // if (["ptt"].includes(message.type)) {
+        //   let mediaBase64 = await this.client.downloadMedia(
+        //     message
+        //   );
+        //   message.body = await speechToText.translate(mediaBase64);
+        // }
 
-            if (message.body.toLowerCase() === "debug") {
-              await this.sendMessage(
-                message.from,
-                JSON.stringify(message, undefined, " "),
-                message.quotedMsgId,
-                false
-              );
-              return;
-            }
+        if (message.body.toLowerCase() === "debug") {
+          await this.sendMessage(
+            message.from,
+            JSON.stringify(message, undefined, " "),
+            message.quotedMsgId,
+            false
+          );
+          return;
+        }
 
-            await botController.onMessageGlobal(message, false);
-          } catch (e) {
-            console.log(e);
-          } finally {
-            this.mensagensProcessando -= 1;
-            this.wppConnectClient.stopTyping(message.from).then().catch();
-          }
-        });
-      })
-      .catch((erro) => {
-        console.log(`wppconnect.create error:` + erro);
-        process.exit(129);
-      });
-  }
-
-  public async start() {
-    await this.wppConnectClient.start();
+        await botController.onMessageGlobal(message, false);
+      } catch (e) {
+        console.log(e);
+      } finally {
+        this.mensagensProcessando -= 1;
+        this.client.stopTyping(message.from).then().catch();
+      }
+    });
   }
 
   public async shutdownProcess() {
@@ -139,23 +135,25 @@ class WhatsappWppConnect {
     }
 
     console.log("close A");
-    if (this.wppConnectClient) {
-      await module.exports.wppConnectClient.close();
-    }
-    console.log("close B");
-    if (this.wppConnectClient) {
-      await module.exports.wppConnectClient.close();
+    if (this.client) {
+      await this.client.close();
     }
   }
 
   async getStatus() {
+    const connectionState = await this.client?.getConnectionState();
+
     return {
       base64Qr: this.base64Qr,
       attemps: this.attempts,
-      client:
-        this.wppConnectClient &&
-        (await this.wppConnectClient.getConnectionState()),
+      connectionState:
+        connectionState !== "CONNECTED" ? "DISCONNECTED" : "CONNECTED",
     };
+  }
+
+  async isDisconnected() {
+    const { connectionState } = await this.getStatus();
+    return connectionState == "DISCONNECTED";
   }
 
   public async sendMessage(
@@ -164,17 +162,16 @@ class WhatsappWppConnect {
     quotedMsg: string,
     continueTyping: boolean
   ) {
-    let status = await this.getStatus();
-    if (!status.client) {
+    if (this.isDisconnected()) {
       throw new Error("wpp não conectado.");
     }
-    await this.wppConnectClient.sendText(chatOrGroupId, message, {
+    await this.client.sendText(chatOrGroupId, message, {
       quotedMsg: quotedMsg,
     });
 
     if (continueTyping) {
       setTimeout(() => {
-        this.wppConnectClient.startTyping(chatOrGroupId).then().catch();
+        this.client.startTyping(chatOrGroupId).then().catch();
       }, 500);
     }
   }
@@ -184,10 +181,10 @@ class WhatsappWppConnect {
     listMessageOptions: ListMessageOptions
   ) {
     let status = await this.getStatus();
-    if (!status.client) {
+    if (this.isDisconnected()) {
       throw new Error("wpp não conectado.");
     }
-    await this.wppConnectClient.sendListMessage(to, listMessageOptions);
+    await this.client.sendListMessage(to, listMessageOptions);
   }
 
   public async sendFileFromBase64(
@@ -197,10 +194,10 @@ class WhatsappWppConnect {
     fileName: string
   ) {
     let status = await this.getStatus();
-    if (!status.client) {
+    if (this.isDisconnected()) {
       throw new Error("wpp não conectado.");
     }
-    await this.wppConnectClient.sendFile(to, base64File, {
+    await this.client.sendFile(to, base64File, {
       type: "document",
       filename: fileName,
       caption: message,
@@ -215,10 +212,10 @@ class WhatsappWppConnect {
     quotedMsg?: string
   ) {
     let status = await this.getStatus();
-    if (!status.client) {
+    if (this.isDisconnected()) {
       throw new Error("wpp não conectado.");
     }
-    await this.wppConnectClient.sendImageFromBase64(
+    await this.client.sendImageFromBase64(
       to,
       base64File,
       fileName,
@@ -228,24 +225,22 @@ class WhatsappWppConnect {
   }
 
   public async checkChatExists(chatOrGroupId: string) {
-    let status = await this.getStatus();
-    if (!status.client) {
+    if (this.isDisconnected()) {
       throw new Error("wpp não conectado.");
     }
 
-    let details = await this.wppConnectClient.getContact(chatOrGroupId);
+    let details = await this.client.getContact(chatOrGroupId);
 
     if (!details) throw new Error(`Number ${chatOrGroupId} does not exist`);
     return details.id;
   }
 
   public async getGrupos(telefone?: string) {
-    let status = await this.getStatus();
-    if (!status.client) {
+    if (this.isDisconnected()) {
       throw new Error("wpp não conectado.");
     }
 
-    let details = await this.wppConnectClient.listChats({ onlyGroups: true });
+    let details = await this.client.listChats({ onlyGroups: true });
 
     if (telefone == null) return details;
     if (telefone == "") return [];
@@ -281,6 +276,6 @@ class WhatsappWppConnect {
   }
 }
 
-const whatsappWppConnect = new WhatsappWppConnect();
+const wppConnectBot = new WppConnectBot();
 
-export default whatsappWppConnect;
+export default wppConnectBot;
