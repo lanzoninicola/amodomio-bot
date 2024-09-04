@@ -3,13 +3,19 @@ import * as wppconnect from "@wppconnect-team/wppconnect";
 import { ListMessageOptions } from "@wppconnect/wa-js";
 
 class WppConnectBot {
-  private client: Whatsapp | null = null;
+  private _client: Whatsapp | null = null;
   private base64Qr: string = "";
   private attempts: number = 0;
 
+  get client(): Whatsapp | null {
+    return this._client;
+  }
+
   public async createClient(): Promise<Whatsapp> {
+    console.log("WppConnectBot.createClient(): Creating client...");
+
     try {
-      this.client = await wppconnect.create({
+      this._client = await wppconnect.create({
         session: "bot-atendimento",
         puppeteerOptions: this.getPuppeteerOptions(),
         useChrome: true,
@@ -21,9 +27,11 @@ class WppConnectBot {
         },
       });
 
-      return this.client;
+      console.log("WppConnectBot.createClient(): Client created!");
+
+      return this._client;
     } catch (error) {
-      console.error(`wppconnect.create error:`, error);
+      console.error(`WppConnectBot.createClient(): Error:`, error);
       process.exit(1);
     }
   }
@@ -52,7 +60,7 @@ class WppConnectBot {
   }
 
   public async shutdownProcess(): Promise<void> {
-    await this.client?.close();
+    await this._client?.close();
   }
 
   public async getStatus(): Promise<{
@@ -60,7 +68,9 @@ class WppConnectBot {
     attempts: number;
     connectionState: "CONNECTED" | "DISCONNECTED";
   }> {
-    const connectionState = await this.client?.getConnectionState();
+    const connectionState = await this._client?.getConnectionState();
+
+    console.log({ connectionState });
 
     return {
       base64Qr: this.base64Qr,
@@ -82,12 +92,20 @@ class WppConnectBot {
     continueTyping: boolean = false
   ): Promise<void> {
     this.ensureConnected();
-    await this.client.sendText(chatOrGroupId, message, { quotedMsg });
+    await this._client.sendText(chatOrGroupId, message, { quotedMsg });
     if (continueTyping) {
       setTimeout(() => {
-        this.client.startTyping(chatOrGroupId).catch(console.error);
+        this.startTyping(chatOrGroupId).catch(console.error);
       }, 500);
     }
+  }
+
+  public startTyping(chatOrGroupId: string): Promise<void> {
+    return this._client.startTyping(chatOrGroupId).catch(console.error);
+  }
+
+  public stopTyping(chatOrGroupId: string): Promise<void> {
+    return this._client.stopTyping(chatOrGroupId).catch(console.error);
   }
 
   public async sendInteractiveMessage(
@@ -95,7 +113,7 @@ class WppConnectBot {
     listMessageOptions: ListMessageOptions
   ): Promise<void> {
     this.ensureConnected();
-    await this.client!.sendListMessage(to, listMessageOptions);
+    await this._client!.sendListMessage(to, listMessageOptions);
   }
 
   public async sendFileFromBase64(
@@ -105,7 +123,7 @@ class WppConnectBot {
     fileName: string
   ): Promise<void> {
     this.ensureConnected();
-    await this.client!.sendFile(to, base64File, {
+    await this._client!.sendFile(to, base64File, {
       type: "document",
       filename: fileName,
       caption: message,
@@ -120,7 +138,7 @@ class WppConnectBot {
     quotedMsg?: string
   ): Promise<void> {
     this.ensureConnected();
-    await this.client!.sendImageFromBase64(
+    await this._client!.sendImageFromBase64(
       to,
       base64File,
       fileName,
@@ -131,14 +149,14 @@ class WppConnectBot {
 
   public async checkChatExists(chatOrGroupId: string): Promise<string> {
     this.ensureConnected();
-    const details = await this.client!.getContact(chatOrGroupId);
+    const details = await this._client!.getContact(chatOrGroupId);
     if (!details) throw new Error(`Number ${chatOrGroupId} does not exist`);
     return details.id;
   }
 
   public async getGrupos(telefone?: string): Promise<any[]> {
     this.ensureConnected();
-    const details = await this.client!.listChats({ onlyGroups: true });
+    const details = await this._client!.listChats({ onlyGroups: true });
     if (!telefone) return details;
     if (telefone === "") return [];
 
@@ -163,8 +181,8 @@ class WppConnectBot {
     });
   }
 
-  private ensureConnected(): void {
-    if (this.isDisconnected()) {
+  private async ensureConnected(): Promise<void> {
+    if (await this.isDisconnected()) {
       throw new Error("WhatsApp is not connected.");
     }
   }

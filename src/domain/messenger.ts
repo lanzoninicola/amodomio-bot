@@ -24,7 +24,6 @@ class Messenger {
   private messagesProcessing = 0;
   private htmlGenerator;
   private bot;
-  private client: Whatsapp | null = null;
 
   private debug = false;
 
@@ -37,8 +36,6 @@ class Messenger {
     bot
       .createClient()
       .then((client: Whatsapp) => {
-        this.client = client;
-
         client.onMessage(async (message: Message) => {
           if (message.type !== "chat") {
             return;
@@ -52,7 +49,7 @@ class Messenger {
           this.messagesProcessing += 1;
 
           // sem await mesmo
-          this.client.startTyping(message.from).then().catch();
+          this.bot.startTyping(message.from).then().catch();
 
           try {
             if (message["listResponse"]?.singleSelectReply) {
@@ -65,7 +62,7 @@ class Messenger {
             console.log(e);
           } finally {
             this.messagesProcessing -= 1;
-            this.client.stopTyping(message.from).then().catch();
+            this.bot.stopTyping(message.from).then().catch();
           }
         });
       })
@@ -76,7 +73,7 @@ class Messenger {
   }
 
   async getStatus() {
-    if (!this.client) {
+    if (!this.bot.client) {
       return {
         base64Qr: "",
         attempts: 0,
@@ -101,14 +98,13 @@ class Messenger {
     message: Message,
     isScheduledMsg: boolean
   ) {
-    if (this.debug === true) {
-      console.log(
-        `<--- FROM "${message.from}:${message.notifyName} -> ${message.body}`
-      );
-    }
+    console.log(
+      "Messenger.processAndReplyMessage()",
+      `<--- FROM "${message.from}:${message.notifyName} -> ${message.body}`
+    );
     try {
       for (const msg of message.body.split("\n")) {
-        const response = await this.processMessage(
+        const response = await this.createResponse(
           isScheduledMsg,
           msg,
           message.author,
@@ -126,7 +122,7 @@ class Messenger {
             );
           }
 
-          if (!this.client) {
+          if (!this.bot.client) {
             console.error("No client defined. Please, check your code.");
             return;
           }
@@ -150,7 +146,7 @@ class Messenger {
     await this.bot.shutdownProcess();
   }
 
-  private async processMessage(
+  private async createResponse(
     isScheduledMsg: boolean,
     body: string,
     author: string,
@@ -200,10 +196,7 @@ class Messenger {
       }
 
       return { text: answer === "-1" ? "" : answer };
-    } catch (e) {
-      console.error(e);
-      return { text: isScheduledMsg ? "" : e.message };
-    }
+    } catch (e) {}
   }
 
   async procAjuda(chatOrGroupId: string): Promise<string> {
@@ -349,7 +342,7 @@ class Messenger {
 
       const message = `Aqui está o painel com as informações solicitadas.\nEspero que gostem! 🤓`;
 
-      await this.client.sendImage(
+      await this.bot.sendImageFromBase64(
         chatOrGroupId,
         message,
         base64file,
