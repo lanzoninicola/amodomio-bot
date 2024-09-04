@@ -82,10 +82,10 @@ class WppConnectBot {
     continueTyping: boolean = false
   ): Promise<void> {
     this.ensureConnected();
-    await this.client!.sendText(chatOrGroupId, message, { quotedMsg });
+    await this.client.sendText(chatOrGroupId, message, { quotedMsg });
     if (continueTyping) {
       setTimeout(() => {
-        this.client!.startTyping(chatOrGroupId).catch(console.error);
+        this.client.startTyping(chatOrGroupId).catch(console.error);
       }, 500);
     }
   }

@@ -122,7 +122,7 @@ class Messenger {
         if (response?.text) {
           if (this.debug === true) {
             console.log(
-              `---> ${response.text} -> ${message.from} : ${message.author}(${message.notifyName})`
+              `---> RESPONSE: ${response.text} -> ${message.from} : ${message.author}(${message.notifyName})`
             );
           }
 
