@@ -1,9 +1,6 @@
-import { Message as WppConnectMessage } from "@wppconnect-team/wppconnect";
+import messenger from "../domain/messenger";
 
-import wppConnectBot from "../libs/wppconnect-bot.lib";
-import messenger from "../libs/messenger.lib";
-
-class WhatsappBotController {
+class BotController {
   private mensagensProcessando = 0;
 
   private trained: boolean = false;
@@ -11,11 +8,9 @@ class WhatsappBotController {
   private dataHoraUltimaAtualizacaoClientes: Date;
 
   private messenger;
-  private client;
 
-  constructor({ messenger, botClient }) {
+  constructor({ messenger }) {
     this.messenger = messenger;
-    this.client = botClient;
     // // 5 minutos
     // setInterval(async () => {
     //   try {
@@ -30,7 +25,23 @@ class WhatsappBotController {
   }
 
   async getStatus() {
-    return this.client.getStatus();
+    try {
+      return await this.messenger.getStatus();
+    } catch (error) {
+      return {
+        base64Qr: "",
+        attempts: 0,
+        connectionState: "DISCONNECTED",
+      };
+    }
+  }
+
+  async listen() {
+    this.messenger.startListeningMessages();
+  }
+
+  async stop() {
+    this.messenger.stopListeningMessages();
   }
 
   async test() {
@@ -51,7 +62,7 @@ class WhatsappBotController {
       msg.body = message;
       msg.from = "5546991272525@c.us";
 
-      let resposta = await this.messenger.process(
+      let resposta = await this.messenger.processMessage(
         false,
         msg.body,
         msg.from,
@@ -76,7 +87,7 @@ class WhatsappBotController {
     continueTyping: boolean
   ) {
     try {
-      await this.client.sendMessage(
+      await this.messenger.sendMessage(
         chatOrGroupId,
         message,
         quotedMsg,
@@ -94,7 +105,12 @@ class WhatsappBotController {
     fileName: string
   ) {
     try {
-      await this.client.sendFileFromBase64(to, message, base64File, fileName);
+      await this.messenger.sendFileFromBase64(
+        to,
+        message,
+        base64File,
+        fileName
+      );
     } catch (e) {
       throw new Error("falha ao enviar mensagem: " + JSON.stringify(e));
     }
@@ -108,7 +124,7 @@ class WhatsappBotController {
     quotedMsg?: string
   ) {
     try {
-      await this.client.sendImageFromBase64(
+      await this.messenger.sendImageFromBase64(
         to,
         message,
         base64File,
@@ -122,67 +138,14 @@ class WhatsappBotController {
 
   async checkChatExists(chatOrGroupId: string) {
     try {
-      return await this.client.checkChatExists(chatOrGroupId);
+      return await this.messenger.checkChatExists(chatOrGroupId);
     } catch (e) {
       throw new Error("falha ao verificar se o chat existe: " + e + "\n");
     }
   }
 
-  public async onMessageGlobal(
-    message: WppConnectMessage,
-    msgAgendada: boolean
-  ) {
-    console.log(
-      " <--- " +
-        message.from +
-        " : " +
-        message.author +
-        "(" +
-        message.notifyName +
-        ")" +
-        " -> " +
-        message.body
-    );
-    try {
-      for (const msg of message.body.split("\n")) {
-        const response = await this.messenger.process(
-          msgAgendada,
-          msg,
-          message.author,
-          message.from,
-          message.notifyName,
-          message.id
-        );
-        if (response?.text) {
-          await this.sendMessage(
-            message.from,
-            response.text,
-            message.id,
-            false
-          );
-          console.log(
-            "---> " +
-              response.text +
-              " -> " +
-              message.from +
-              " : " +
-              message.author +
-              "(" +
-              message.notifyName +
-              ")"
-          );
-        }
-      }
-    } catch (e) {
-      console.error(e);
-      if (msgAgendada == true) {
-        throw e;
-      }
-    }
-  }
-
   public async shutdownProcess() {
-    this.client.shutdownProcess();
+    this.messenger.shutdownProcess();
   }
 
   // async getGrupos(user: string) {
@@ -191,7 +154,7 @@ class WhatsappBotController {
   //     telefone =
   //       this.clientes.find((c) => c.codigo === user.codigo)?.telefone ?? "";
   //   }
-  //   return (await this.client.getGrupos(telefone)).map((grupo) => ({
+  //   return (await this.messenger.getGrupos(telefone)).map((grupo) => ({
   //     wid: grupo.id._serialized,
   //     id: grupo.id.user,
   //     name: grupo.name,
@@ -260,8 +223,7 @@ class WhatsappBotController {
   // }
 }
 
-const botController = new WhatsappBotController({
-  botClient: wppConnectBot,
+const botController = new BotController({
   messenger: messenger,
 });
 

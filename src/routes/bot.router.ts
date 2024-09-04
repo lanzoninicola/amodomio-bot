@@ -9,6 +9,8 @@ const router = express.Router();
 export class BotRouter {
   constructor() {
     router.get("/status", async (req: Request, res, next) => {
+      // this renders a page with the current status
+
       try {
         let text = "";
 

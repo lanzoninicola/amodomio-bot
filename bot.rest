@@ -1,0 +1,2 @@
+### Get
+GET http://localhost:19000/api/bot/whatsapp/status

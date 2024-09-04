@@ -5,25 +5,26 @@ import {
 } from "./src/libs/express/express-factory";
 import { Request, Response, NextFunction } from "express";
 import { BotRouter } from "./src/routes/bot.router";
+import messenger from "./src/domain/messenger";
 
 setTimeout(async () => {
   let status;
+
   do {
-    status = await botController.getStatus();
+    status = await messenger.getStatus();
     await new Promise((resolve) => {
       setTimeout(resolve, 1000);
     });
-  } while (!status.client && !status.base64Qr);
+  } while (status?.connectionState !== "CONNECTED" && !status?.base64Qr);
 
-  const { app } = createExpressServer({
+  createExpressServer({
     port: 19000,
     ip: undefined,
     minutesToRestart: 90,
+    shutdownScript: async () => {
+      await botController.shutdownProcess();
+    },
   });
-
-  app.shutdownScript = async () => {
-    await botController.shutdownProcess();
-  };
 
   const ROOT = "/api/bot";
 

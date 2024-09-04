@@ -42,6 +42,7 @@ export function createExpressServer(opts: {
   port: number;
   ip: number;
   minutesToRestart?: number;
+  shutdownScript?: () => void;
 }): {
   app: MyExpress;
   server: Server;
@@ -84,9 +85,11 @@ export function createExpressServer(opts: {
   function _gracefulShutdown() {
     console.info("Graceful shutdown start", new Date().toISOString());
     SERVER.close(async () => {
-      if (APP.shutdownScript) {
+      const shutdownScript = opts?.shutdownScript;
+
+      if (typeof shutdownScript === "function") {
         console.info("Graceful shutdown script init");
-        await APP.shutdownScript();
+        await shutdownScript();
         console.info("Graceful shutdown script end");
       }
       console.info("Graceful shutdown end", new Date().toISOString());
